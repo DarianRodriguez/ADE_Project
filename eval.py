@@ -1,6 +1,7 @@
 
 import torch
 import numpy as np
+from sklearn.metrics import classification_report
 
 
 def extract_entity_span(num_labels,labels):
@@ -27,8 +28,8 @@ def extract_entity_span(num_labels,labels):
 def count_instances(labels, predictions,transition):
     """ Count Spurius (SPU) """
     # Convert tensors to NumPy arrays
-    labels_np = labels.numpy()
-    predictions_np = predictions.numpy()
+    labels_np = labels.cpu().numpy()
+    predictions_np = predictions.cpu().numpy()
 
     # Identify the indices where the labels have 0
     zero_indices = np.where(labels_np == 0)[0]
@@ -63,7 +64,7 @@ def calculate_metrics(entity, true_labels, predicted_labels,entity_change = [1,2
             FN += 1
 
     FP= count_instances(true_labels, predicted_labels,entity_change)
-    print("FP",FP)
+    #print("FP",FP)
 
     precision = TP / (TP + FP) if TP + FP > 0 else 0
     recall = TP / (TP + FN) if TP + FN > 0 else 0
@@ -73,10 +74,11 @@ def calculate_metrics(entity, true_labels, predicted_labels,entity_change = [1,2
     accuracy = (TP) / (TP + FP + FN) if TP + FP + FN > 0 else 0
 
     # Print the calculated metrics
-    print("Precision: {:.3f}", precision)
-    print("Recall: {:.3f}", recall)
-    print("F1-score: {:.3f}", f1_score)
-    print("Accuracy: {:.3f}", accuracy)
+    print("Precision: {:.3f}".format(precision))
+    print("Recall: {:.3f}".format(recall))
+    print("F1-score: {:.3f}".format(f1_score))
+    print("Accuracy: {:.3f}".format(accuracy))
+
 
     #print("TP",TP)
 
@@ -92,10 +94,30 @@ def evaluate(true_labels,eval_predictions):
 
     entities = extract_entity_span(5,masked_true_labels)
 
-    print("DRUGS")
-    calculate_metrics(entities[0], masked_true_labels, masked_predictions) # Drugs
+    print("####### DRUGS #######")
+    calculate_metrics(entities[0], masked_true_labels, masked_predictions,[1,2]) # Drugs
 
-    print("EFFECTS")
-    calculate_metrics(entities[1], masked_true_labels, masked_predictions) # Effect
+    print("####### EFFECTS #######")
+    calculate_metrics(entities[1], masked_true_labels, masked_predictions,[3,4]) # Effect
+
+    label_mapping = {
+    0: 'O',
+    1: 'B-drug',
+    2: 'I-drug',
+    3: 'B-effect',
+    4: 'I-effect'
+    }
+
+    labels = list(label_mapping.values())
+
+    # Convert tensors to numpy arrays
+    masked_true_labels_np = masked_true_labels.cpu().numpy()
+    masked_predictions_np = masked_predictions.cpu().numpy()
+
+    # Generate classification report
+    report = classification_report(masked_true_labels_np, masked_predictions_np,target_names=labels)
+
+    print("####### Classification Report: #######")
+    print(report)
 
     return

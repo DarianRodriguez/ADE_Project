@@ -1,8 +1,10 @@
 from sklearn.model_selection import train_test_split
 from datasets import load_dataset
 from data_process import  NERDataset,create_unique_dataset
-from training import train_engine
-from eval import evaluate
+from training_NER import train_engine
+from training_RE import train_engine as train_engine_re
+from eval import evaluate, generate_classification_report_re
+
 
 import config
 
@@ -13,7 +15,7 @@ def main():
 
     # Create an instance of NERDataset
     ner_dataset = NERDataset(dataset["train"],config.TOKENIZER ,config.MAX_LEN)
-    dataset_tokenized = create_unique_dataset(ner_dataset)
+    dataset_tokenized = create_unique_dataset(ner_dataset,skip=True)
 
     # Split the Data
     train_data, temp_data = train_test_split(dataset_tokenized, test_size = 1 - config.TRAIN_SPLIT, random_state=42)
@@ -23,10 +25,16 @@ def main():
     print(len(valid_data))
 
     # Train the model using the train_engine function
-    trained_model, eval_predictions, true_labels = train_engine(config.EPOCHS, train_data, valid_data)
+    #trained_model, eval_predictions, true_labels = train_engine(config.EPOCHS, train_data, valid_data)
+
+    trained_model, eval_predictions, true_labels = train_engine_re(config.EPOCHS, train_data, valid_data)
+    print('pred ', eval_predictions.shape)
+
+    generate_classification_report_re(0.6, eval_predictions, true_labels, ['No Effect', 'Effect'])
+
 
     # Metrics on validation set
-    evaluate(true_labels,eval_predictions)
+    #evaluate(true_labels,eval_predictions)
 
 if __name__ == "__main__":
     main()

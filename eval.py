@@ -12,12 +12,13 @@ def extract_entity_span(num_labels,labels):
         pair = unique_labels[i:i+2]
 
         # Find indices where transition from 1 to 2 occurs (Drug)
-        transition_1_to_2_indices = torch.where((labels[:-1] == pair[0]) & (labels[1:] == pair[1]))[0] 
+        #transition_1_to_2_indices = torch.where((labels[:-1] == pair[0]) & (labels[1:] == pair[1]))[0] 
+        transition_1_to_2_indices = torch.where((labels[:-1] == pair[0]) & (labels[1:] != pair[0]))[0] 
         transition_2_to_any = torch.where((labels[:-1] == pair[1]) & (labels[1:] != pair[1]))[0]
 
         if len(transition_2_to_any) != len(transition_1_to_2_indices): 
             length = len(labels)-1
-            transition_2_to_any = torch.cat((transition_2_to_any, torch.tensor([length])))
+            transition_2_to_any = torch.cat((transition_2_to_any, torch.tensor([length], device=labels.device)))
 
         entity = zip(transition_1_to_2_indices,transition_2_to_any)
         entities.append(entity)
@@ -121,3 +122,26 @@ def evaluate(true_labels,eval_predictions):
     print(report)
 
     return
+
+
+def generate_classification_report_re(threshold, predictions, true_labels, target_names):
+
+    print('before',predictions.shape)
+    # Applying threshold using torch.where
+    predictions_new = torch.where(predictions > threshold, torch.tensor(1), torch.tensor(0))
+    print('after',predictions_new.shape)
+    
+    # Convert predictions and true labels to numpy arrays
+    masked_true_labels_np = true_labels.cpu().numpy().ravel()
+    masked_predictions_np = predictions_new.cpu().numpy().ravel()
+
+    print('true ', masked_true_labels_np.shape)
+    print('pred ', masked_predictions_np.shape)
+    
+    # Generate classification report
+    report = classification_report(masked_true_labels_np, masked_predictions_np, target_names=target_names)
+
+    print("Classification Report:")
+    print(report)
+    
+    return 

@@ -6,7 +6,6 @@ from transformers import BertForTokenClassification
 from tqdm import tqdm
 
 import config
-import itertools
 
 def train_fn(data_loader, model, optimizer, device):
     model.train() # Set the model in training mode

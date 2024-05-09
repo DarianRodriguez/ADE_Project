@@ -82,7 +82,7 @@ class NERDataset(Dataset):
         return start_char,end_char
     
     
-def create_unique_dataset(original_dataset):
+def create_unique_dataset(original_dataset,skip = False):
     unique_sentences = []  # Dictionary to store unique sentences and their labels
     updated_dataset = []  # List to store updated samples
 
@@ -91,7 +91,7 @@ def create_unique_dataset(original_dataset):
         text = item['input_text']
 
         # Check if the sentence is already in the unique_sentences dictionary
-        if text not in unique_sentences:
+        if skip or (text not in unique_sentences):
             # If not present, add the sentence and its labels to the dictionary
             unique_sentences.append(text)
             updated_dataset.append(item)

@@ -100,7 +100,7 @@ def train_engine(epoch, train_data, valid_data):
 
             if eval_loss < best_eval_loss:
                 best_eval_loss = eval_loss
-                best_model = model.state_dict().copy()
+                best_model = model 
                 best_eval_predictions = eval_predictions
                 best_true_labels = true_labels
                 print("Updating the best model")

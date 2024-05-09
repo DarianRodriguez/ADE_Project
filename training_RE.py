@@ -31,7 +31,9 @@ def extract_entity_drug(labels):
 class DrugAwareModel(nn.Module):
     def __init__(self, num_labels):
         super(DrugAwareModel, self).__init__()
-        self.bert = BertModel.from_pretrained('dmis-lab/biobert-v1.1')
+        #self.bert = BertModel.from_pretrained('dmis-lab/biobert-v1.1',hidden_dropout_prob=0.3)
+        self.bert = config.MODEL
+        self.bert.config.hidden_dropout_prob = 0.3
         self.hidden_size = self.bert.config.hidden_size
         self.linear_layer = nn.Linear(self.bert.config.hidden_size, num_labels)
         self.sigmoid = nn.Sigmoid()
@@ -44,6 +46,7 @@ class DrugAwareModel(nn.Module):
         attention_mask = attention_mask.to(self.bert.device)
         drug_labels = drug_labels.to(self.bert.device)
 
+        self.bert = config.MODEL
         outputs = self.bert(input_ids=input_ids, attention_mask=attention_mask)
         sequence_output = outputs.last_hidden_state  # Get the sequence output from BioBERT (embeddings)
 
@@ -111,6 +114,7 @@ def eval_fn(data_loader, model, device):
     total_loss = 0
     predictions = []
     true_labels = []
+    attention_masks = []
     
     with torch.no_grad():
         for batch in tqdm(data_loader, desc='Evaluation'):
@@ -127,18 +131,21 @@ def eval_fn(data_loader, model, device):
             # Append predictions and true labels
             predictions.append(logits)
             true_labels.append(enc_labels)
+            attention_masks.append(attention_mask)
     
             avg_eval_loss = total_loss / len(data_loader)
 
     # Concatenate predictions and true labels along the batch dimension
     predictions = torch.cat(predictions, dim=0).squeeze(2)
     true_labels = torch.cat(true_labels, dim=0)
+    attention_masks = torch.cat(attention_masks, dim=0)
 
-    return avg_eval_loss, predictions, true_labels
+    return avg_eval_loss, predictions, true_labels,attention_masks
 
 def train_engine(epoch, train_data, valid_data):
 
     lr = 1e-5
+    #weight_decay = 1e-5
 
     # Define your train and validation data loaders
     train_loader = DataLoader(train_data, batch_size=config.TRAIN_BATCH_SIZE, shuffle=True)
@@ -156,17 +163,17 @@ def train_engine(epoch, train_data, valid_data):
 
     for i in range(epoch):
         train_loss = train_fn(train_loader, model, optimizer, device)
-        eval_loss, eval_predictions, true_labels = eval_fn(valid_loader, model, device)
+        eval_loss, eval_predictions, true_labels,mask = eval_fn(valid_loader, model, device)
         
         print(f"Epoch {i} , Train loss: {train_loss}, Eval loss: {eval_loss}")
 
         if eval_loss < best_eval_loss:
             best_eval_loss = eval_loss
-            best_model = model.state_dict().copy()
+            best_model = model 
             best_eval_predictions = eval_predictions
             best_true_labels = true_labels
             print("Updating the best model")
 
 
-    return best_model, best_eval_predictions, best_true_labels
+    return best_model, best_eval_predictions, best_true_labels,mask
 

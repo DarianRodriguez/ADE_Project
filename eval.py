@@ -2,7 +2,7 @@
 import torch
 import numpy as np
 from sklearn.metrics import classification_report
-
+from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 
 def extract_entity_span(num_labels,labels):
     unique_labels = list(range(1, num_labels))
@@ -118,30 +118,42 @@ def evaluate(true_labels,eval_predictions):
     # Generate classification report
     report = classification_report(masked_true_labels_np, masked_predictions_np,target_names=labels)
 
+    # Compute precision, recall, and F1 score
+    precision, recall, f1_score, _ = precision_recall_fscore_support(masked_true_labels_np, masked_predictions_np, average='weighted')
+
     print("####### Classification Report: #######")
     print(report)
+
+    print("Precision: {:.3f}".format(precision))
+    print("Recall: {:.3f}".format(recall))
+    print("F1 Score: {:.3f}".format(f1_score))
 
     return
 
 
-def generate_classification_report_re(threshold, predictions, true_labels, target_names):
+def generate_classification_report_re(threshold, predictions, true_labels, target_names,attention_masks):
 
-    print('before',predictions.shape)
     # Applying threshold using torch.where
     predictions_new = torch.where(predictions > threshold, torch.tensor(1), torch.tensor(0))
-    print('after',predictions_new.shape)
-    
-    # Convert predictions and true labels to numpy arrays
-    masked_true_labels_np = true_labels.cpu().numpy().ravel()
-    masked_predictions_np = predictions_new.cpu().numpy().ravel()
+    # Apply attention mask to filter out predictions and true labels
+    predictions_masked = predictions_new[attention_masks.bool()]
+    true_labels_masked = true_labels[attention_masks.bool()]
 
-    print('true ', masked_true_labels_np.shape)
-    print('pred ', masked_predictions_np.shape)
-    
+    # Convert predictions and true labels to numpy arrays
+    masked_true_labels_np = true_labels_masked.cpu().numpy().ravel()
+    masked_predictions_np = predictions_masked.cpu().numpy().ravel()
+
     # Generate classification report
     report = classification_report(masked_true_labels_np, masked_predictions_np, target_names=target_names)
 
-    print("Classification Report:")
+    # Compute precision, recall, and F1 score
+    precision, recall, f1_score, _ = precision_recall_fscore_support(masked_true_labels_np, masked_predictions_np, average='weighted')
+
+    print("####### Classification Report: #######")
     print(report)
-    
-    return 
+
+    print("Precision: {:.3f}".format(precision))
+    print("Recall: {:.3f}".format(recall))
+    print("F1 Score: {:.3f}".format(f1_score))
+
+    return

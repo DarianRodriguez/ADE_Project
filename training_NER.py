@@ -4,6 +4,8 @@ from torch.optim import AdamW
 from torch.utils.data import DataLoader
 from transformers import BertForTokenClassification
 from tqdm import tqdm
+import itertools
+from eval import evaluate
 
 import config
 
@@ -73,20 +75,29 @@ def train_engine(epoch, train_data, valid_data):
     valid_loader = DataLoader(valid_data, batch_size=config.VALID_BATCH_SIZE, shuffle=True)
 
     # Define your grid of dropout probabilities and learning rates
-    dropout_probs = [0.3]
-    learning_rates = [1e-5]
+    #dropout_probs = [0.1, 0.2, 0.3, 0.5]
+    #learning_rates = [1e-4, 5e-5,1e-5, 1e-6]
+    #weight_decays = [0.01, 0.001, 0.0001]
+
+
+    dropout_probs = [0.2]
+    learning_rates = [5e-5]
+    weight_decay = 0.01
 
     best_model = None
     best_eval_loss = float('inf')
     best_eval_predictions = None
     best_true_labels = None
+    best_hyper = None
 
     # Loop over all combinations of dropout probabilities and learning rates
+    #for dropout_prob, lr, weight_decay in itertools.product(dropout_probs, learning_rates, weight_decays):
     for dropout_prob, lr in zip(dropout_probs,learning_rates):
 
         #model = BertForTokenClassification.from_pretrained('bert-base-uncased', num_labels=5,hidden_dropout_prob=dropout_prob)
         model = BertForTokenClassification.from_pretrained('dmis-lab/biobert-v1.1', num_labels=5,hidden_dropout_prob=dropout_prob)
-        optimizer = AdamW(model.parameters(), lr=lr)
+        optimizer = AdamW(model.parameters(), lr=lr,weight_decay=weight_decay)
+        #optimizer = AdamW(model.parameters(), lr=lr)
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         model.to(device)
 
@@ -99,10 +110,18 @@ def train_engine(epoch, train_data, valid_data):
             print(f"Epoch {i}, Dropout: {dropout_prob}, LR: {lr}, Train loss: {train_loss}, Eval loss: {eval_loss}")
 
             if eval_loss < best_eval_loss:
+                #best_hyper = (dropout_prob, lr, weight_decay)
+                best_hyper = (dropout_prob, lr, weight_decay)
                 best_eval_loss = eval_loss
                 best_model = model 
                 best_eval_predictions = eval_predictions
                 best_true_labels = true_labels
                 print("Updating the best model")
+
+
+        print(f"Best hyperparameters: Dropout = {best_hyper[0]}, LR = {best_hyper[1]}, Weight = {best_hyper[2]}")
+        evaluate(best_true_labels,best_eval_predictions)
+
+        
 
     return best_model, best_eval_predictions, best_true_labels

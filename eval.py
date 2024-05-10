@@ -13,7 +13,7 @@ def extract_entity_span(num_labels,labels):
 
         # Find indices where transition from 1 to 2 occurs (Drug)
         #transition_1_to_2_indices = torch.where((labels[:-1] == pair[0]) & (labels[1:] == pair[1]))[0] 
-        transition_1_to_2_indices = torch.where((labels[:-1] == pair[0]) & (labels[1:] != pair[0]))[0] 
+        transition_1_to_2_indices = torch.where((labels[:-1] == pair[0]) & (labels[1:] == pair[1]))[0] 
         transition_2_to_any = torch.where((labels[:-1] == pair[1]) & (labels[1:] != pair[1]))[0]
 
         if len(transition_2_to_any) != len(transition_1_to_2_indices): 

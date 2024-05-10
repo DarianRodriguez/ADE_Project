@@ -6,6 +6,8 @@ from transformers import BertForTokenClassification
 from tqdm import tqdm
 import torch.nn as nn
 from transformers import BertModel
+import itertools
+from eval import evaluate, generate_classification_report_re
 
 import config
 
@@ -144,36 +146,54 @@ def eval_fn(data_loader, model, device):
 
 def train_engine(epoch, train_data, valid_data):
 
-    lr = 1e-5
+    # Define your grid of dropout probabilities and learning rates
+    #dropout_probs = [0.1, 0.2, 0.3, 0.5]
+    #learning_rates = [1e-4, 5e-5,1e-5, 1e-6]
+    #weight_decays = [0.01, 0.001, 0.0001]
+
+    dropout_probs = [0.1]
+    learning_rates = [1e-4]
+    weight_decay = 0.01
+
     #weight_decay = 1e-5
 
     # Define your train and validation data loaders
     train_loader = DataLoader(train_data, batch_size=config.TRAIN_BATCH_SIZE, shuffle=True)
     valid_loader = DataLoader(valid_data, batch_size=config.VALID_BATCH_SIZE, shuffle=True)
-    model= DrugAwareModel (1)
-    optimizer = AdamW(model.parameters(), lr=lr)
 
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model.to(device)
 
-    best_model = None
-    best_eval_loss = float('inf')
-    best_eval_predictions = None
-    best_true_labels = None
+    #for dropout_prob, lr, weight_decay in itertools.product(dropout_probs, learning_rates, weight_decays):
+    for dropout_prob, lr in zip(dropout_probs,learning_rates):
+        model= DrugAwareModel (1)
+        model.bert.config.hidden_dropout_prob = dropout_prob,
+        #optimizer = AdamW(model.parameters(), lr=lr)
+        optimizer = AdamW(model.parameters(), lr=lr,weight_decay=weight_decay)
 
-    for i in range(epoch):
-        train_loss = train_fn(train_loader, model, optimizer, device)
-        eval_loss, eval_predictions, true_labels,mask = eval_fn(valid_loader, model, device)
-        
-        print(f"Epoch {i} , Train loss: {train_loss}, Eval loss: {eval_loss}")
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        model.to(device)
 
-        if eval_loss < best_eval_loss:
-            best_eval_loss = eval_loss
-            best_model = model 
-            best_eval_predictions = eval_predictions
-            best_true_labels = true_labels
-            print("Updating the best model")
+        best_model = None
+        best_eval_loss = float('inf')
+        best_eval_predictions = None
+        best_true_labels = None
+        best_hyper = None
 
+        for i in range(epoch):
+            train_loss = train_fn(train_loader, model, optimizer, device)
+            eval_loss, eval_predictions, true_labels,mask = eval_fn(valid_loader, model, device)
+            
+            print(f"Epoch {i} , Train loss: {train_loss}, Eval loss: {eval_loss}")
+
+            if eval_loss < best_eval_loss:
+                best_hyper = (dropout_prob, lr, weight_decay)
+                best_eval_loss = eval_loss
+                best_model = model 
+                best_eval_predictions = eval_predictions
+                best_true_labels = true_labels
+                print("Updating the best model")
+
+        print(f"Best hyperparameters: Dropout = {best_hyper[0]}, LR = {best_hyper[1]}, Weight = {best_hyper[2]}")
+        generate_classification_report_re(0.6, best_eval_predictions, best_true_labels, ['No Effect', 'Effect'],attention_masks=mask)
 
     return best_model, best_eval_predictions, best_true_labels,mask
 
